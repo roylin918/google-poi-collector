@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Config (API key)
+config.json
+.env
+
+# Session (user prefs)
+session.json
+
+# Output (generated data)
+output/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

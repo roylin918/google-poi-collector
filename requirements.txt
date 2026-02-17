@@ -1,0 +1,6 @@
+# Google POI crawler dependencies
+requests>=2.31.0
+folium>=0.15.0
+python-dotenv>=1.0.0
+flask>=3.0.0
+shapely>=2.0.0

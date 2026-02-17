@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Google POI Crawler</title>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --fg: #1a1a1a;
+      --card: #fff;
+      --border: #ddd;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --muted: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin: 0 0 24px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; margin-bottom: 4px; font-weight: 500; }
+    .form-row input[type="text"],
+    .form-row input[type="number"] {
+      width: 100%;
+      max-width: 400px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .form-inline { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .form-inline .form-group { display: flex; align-items: center; gap: 6px; }
+    .form-inline label { margin: 0; white-space: nowrap; }
+    .form-inline input { width: 80px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; }
+    .attr-section { margin-bottom: 16px; }
+    .attr-section h3 { font-size: 0.9rem; margin: 0 0 8px; color: var(--muted); }
+    .attr-grid { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+    .attr-grid label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; }
+    .attr-grid input[type="checkbox"] { width: 18px; height: 18px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      color: #fff;
+      background: var(--primary);
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: var(--muted); }
+    .btn-secondary:hover { background: #4b5563; }
+    .progress-card { min-height: 120px; }
+    #statusText { font-weight: 500; }
+    #elapsedText { color: var(--muted); font-size: 0.9rem; }
+    #logArea {
+      width: 100%;
+      min-height: 80px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fafafa;
+      font-family: monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+    }
+    .result-links { margin-top: 12px; }
+    .result-links a { margin-right: 12px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Google POI Crawler</h1>
+
+    <div class="card">
+      <h2>Search — type keywords and location here</h2>
+      <div class="form-row">
+        <label for="keywords">Keywords (e.g. cafe, pizza)</label>
+        <input type="text" id="keywords" name="keywords" placeholder="cafe">
+      </div>
+      <div class="form-row">
+        <label for="location">Location (e.g. Taipei Taiwan)</label>
+        <input type="text" id="location" name="location" placeholder="Taipei Taiwan">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Options</h2>
+      <div class="form-inline">
+        <div class="form-group">
+          <label for="max_pages">Max pages (1–20)</label>
+          <input type="number" id="max_pages" name="max_pages" min="1" max="20" value="10">
+        </div>
+        <div class="form-group">
+          <label for="max_results">Max results (empty = no limit)</label>
+          <input type="text" id="max_results" name="max_results" placeholder="e.g. 200">
+        </div>
+        <div class="form-group">
+          <label for="language_code">Language</label>
+          <input type="text" id="language_code" name="language_code" value="en" placeholder="en">
+        </div>
+        <div class="form-group">
+          <label for="region_code">Region</label>
+          <input type="text" id="region_code" name="region_code" placeholder="TW">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Attributes to fetch</h2>
+      <button type="button" class="btn btn-secondary" id="selectBasics">Select all basics</button>
+      {% for group_label, fields in attribute_groups %}
+      <div class="attr-section">
+        <h3>{{ group_label }}</h3>
+        <div class="attr-grid">
+          {% for f in fields %}
+          <label><input type="checkbox" name="attr" value="{{ f }}"> {{ f }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card progress-card">
+      <h2>Progress</h2>
+      <p><span id="statusText">Idle</span> <span id="elapsedText"></span></p>
+      <textarea id="logArea" readonly></textarea>
+      <div class="result-links hidden" id="resultLinks">
+        <a href="#" id="linkMap" class="btn" target="_blank">Open map</a>
+        <a href="#" id="linkCsv" class="btn btn-secondary" download>Download CSV</a>
+      </div>
+    </div>
+
+    <div>
+      <button type="button" class="btn" id="btnStart">Start crawl</button>
+    </div>
+  </div>
+
+  <script>
+    const keywords = document.getElementById('keywords');
+    const locationInput = document.getElementById('location');
+    const maxPages = document.getElementById('max_pages');
+    const maxResults = document.getElementById('max_results');
+    const languageCode = document.getElementById('language_code');
+    const regionCode = document.getElementById('region_code');
+    const statusText = document.getElementById('statusText');
+    const elapsedText = document.getElementById('elapsedText');
+    const logArea = document.getElementById('logArea');
+    const resultLinks = document.getElementById('resultLinks');
+    const linkMap = document.getElementById('linkMap');
+    const linkCsv = document.getElementById('linkCsv');
+    const btnStart = document.getElementById('btnStart');
+    const selectBasics = document.getElementById('selectBasics');
+
+    function log(msg) {
+      logArea.value += msg + '\n';
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function getAttributes() {
+      const checked = document.querySelectorAll('input[name="attr"]:checked');
+      return Array.from(checked).map(el => el.value);
+    }
+
+    function setAttributes(attrs) {
+      document.querySelectorAll('input[name="attr"]').forEach(el => {
+        el.checked = attrs.includes(el.value);
+      });
+    }
+
+    selectBasics.addEventListener('click', () => {
+      const basics = ['id', 'displayName', 'formattedAddress', 'location', 'types'];
+      document.querySelectorAll('input[name="attr"]').forEach(el => {
+        el.checked = basics.includes(el.value) || el.checked;
+      });
+    });
+
+    async function loadSession() {
+      try {
+        const r = await fetch('/api/session');
+        const s = await r.json();
+        keywords.value = s.keywords || '';
+        locationInput.value = s.location || '';
+        maxPages.value = Math.min(20, Math.max(1, s.max_pages || 10));
+        maxResults.value = s.max_results != null && s.max_results !== '' ? s.max_results : '';
+        languageCode.value = s.language_code || 'en';
+        regionCode.value = s.region_code || '';
+        if (s.attributes && s.attributes.length) setAttributes(s.attributes);
+        else setAttributes(['id', 'displayName', 'formattedAddress', 'location', 'types']);
+      } catch (e) {
+        log('Could not load saved session.');
+      }
+    }
+
+    async function saveSession() {
+      const attrs = getAttributes();
+      if (!attrs.length) attrs.push('id', 'displayName', 'formattedAddress', 'location');
+      try {
+        await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keywords: keywords.value.trim(),
+            location: locationInput.value.trim(),
+            max_pages: parseInt(maxPages.value, 10) || 10,
+            max_results: maxResults.value.trim() ? parseInt(maxResults.value, 10) : null,
+            language_code: languageCode.value.trim() || 'en',
+            region_code: regionCode.value.trim(),
+            attributes: attrs,
+          }),
+        });
+      } catch (e) {}
+    }
+
+    let pollTimer = null;
+    let lastErrorCount = 0;
+    function pollStatus() {
+      fetch('/api/status')
+        .then(r => r.json())
+        .then(data => {
+          statusText.textContent = data.message || data.status;
+          elapsedText.textContent = data.elapsed != null ? `(${Math.floor(data.elapsed / 60)}:${String(data.elapsed % 60).padStart(2, '0')})` : '';
+          if (data.errors && data.errors.length > lastErrorCount) {
+            data.errors.slice(lastErrorCount).forEach(e => log(e));
+            lastErrorCount = data.errors.length;
+          }
+          if (data.running) {
+            btnStart.disabled = true;
+            pollTimer = setTimeout(pollStatus, 1000);
+          } else {
+            btnStart.disabled = false;
+            if (data.errors && data.errors.length > lastErrorCount) {
+              data.errors.slice(lastErrorCount).forEach(e => log(e));
+            }
+            lastErrorCount = 0;
+            if (data.map_path) {
+              linkMap.href = '/output/' + data.map_path;
+              linkCsv.href = '/output/' + data.csv_path;
+              resultLinks.classList.remove('hidden');
+            }
+          }
+        })
+        .catch(() => { if (pollTimer) pollTimer = setTimeout(pollStatus, 2000); });
+    }
+
+    btnStart.addEventListener('click', async () => {
+      const attrs = getAttributes();
+      if (!attrs.length) {
+        log('Select at least one attribute (or use Select all basics).');
+        return;
+      }
+      await saveSession();
+      logArea.value = '';
+      lastErrorCount = 0;
+      resultLinks.classList.add('hidden');
+      try {
+        const r = await fetch('/api/crawl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            keywords: keywords.value.trim(),
+            location: locationInput.value.trim(),
+            max_pages: parseInt(maxPages.value, 10) || 10,
+            max_results: maxResults.value.trim() ? parseInt(maxResults.value, 10) : null,
+            language_code: languageCode.value.trim() || null,
+            region_code: regionCode.value.trim() || null,
+            attributes: attrs,
+          }),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          log(data.error || 'Failed to start crawl.');
+          return;
+        }
+        pollStatus();
+      } catch (e) {
+        log('Request failed: ' + e.message);
+      }
+    });
+
+    loadSession();
+  </script>
+</body>
+</html>
