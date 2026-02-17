@@ -34,6 +34,7 @@ def run_crawl(
     max_results=None,
     language_code=None,
     region_code=None,
+    primary_types=None,
 ):
     """
     Run the full crawl flow. progress_callback(status, message, count, errors_list).
@@ -88,6 +89,15 @@ def run_crawl(
     )
     location_bounds = (sw_lat, sw_lng, ne_lat, ne_lng) if use_bounds else None
     text_query = f"{keywords.strip()} in {location.strip()}"
+
+    # Optional primary type filter(s). API supports one includedType per request; multiple types = one search per type per cell, then merge.
+    types_to_use = []
+    if primary_types:
+        for t in primary_types:
+            if isinstance(t, str) and t.strip():
+                types_to_use.append(t.strip())
+    if not types_to_use:
+        types_to_use = [None]  # no filter
 
     # Optional: fetch irregular boundary from OSM (e.g. Taipei City polygon)
     boundary_geojson = None
@@ -160,54 +170,58 @@ def run_crawl(
 
         cell_places = []
         cell_api_returned = 0  # total results returned by API for this cell (before dedup) – used to decide subdivision
-        page_token = None
-        page = 0
-        cell_done = False
         request_error = False
 
-        while not cell_done and not request_error:
-            page += 1
-            if page > max_pages:
+        for inc_type in types_to_use:
+            if request_error or (max_results and len(all_places) >= max_results):
                 break
-            try:
-                places_batch, next_token = text_search(
-                    text_query,
-                    center_lat,
-                    center_lng,
-                    RADIUS_M,
-                    field_mask,
-                    api_key,
-                    page_token=page_token,
-                    language_code=language_code or None,
-                    region_code=region_code or None,
-                    location_bounds=cell_bounds,
-                )
-            except Exception as e:
-                errors.append(str(e))
-                report("status", f"Request error: {e}", len(all_places), log_errors=True)
-                request_error = True
-                break
-
-            cell_api_returned += len(places_batch)
-            for p in places_batch:
-                pid = p.get("id") or (p.get("name") or "").replace("places/", "")
-                if pid and pid not in seen_ids:
-                    seen_ids.add(pid)
-                    all_places.append(p)
-                    cell_places.append(p)
-                if max_results and len(all_places) >= max_results:
-                    cell_done = True
+            page_token = None
+            page = 0
+            type_done = False
+            while not type_done and not request_error:
+                page += 1
+                if page > max_pages:
+                    break
+                try:
+                    places_batch, next_token = text_search(
+                        text_query,
+                        center_lat,
+                        center_lng,
+                        RADIUS_M,
+                        field_mask,
+                        api_key,
+                        page_token=page_token,
+                        language_code=language_code or None,
+                        region_code=region_code or None,
+                        location_bounds=cell_bounds,
+                        included_type=inc_type,
+                    )
+                except Exception as e:
+                    errors.append(str(e))
+                    report("status", f"Request error: {e}", len(all_places), log_errors=True)
+                    request_error = True
                     break
 
-            report("status", f"Page {page}… {len(all_places)} places.", len(all_places))
-            if max_results and len(all_places) >= max_results:
-                cell_done = True
-                break
-            if not next_token:
-                cell_done = True
-                break
-            page_token = next_token
-            time.sleep(PAGE_DELAY_S)
+                cell_api_returned += len(places_batch)
+                for p in places_batch:
+                    pid = p.get("id") or (p.get("name") or "").replace("places/", "")
+                    if pid and pid not in seen_ids:
+                        seen_ids.add(pid)
+                        all_places.append(p)
+                        cell_places.append(p)
+                    if max_results and len(all_places) >= max_results:
+                        type_done = True
+                        break
+
+                report("status", f"Page {page}… {len(all_places)} places.", len(all_places))
+                if max_results and len(all_places) >= max_results:
+                    type_done = True
+                    break
+                if not next_token:
+                    type_done = True
+                    break
+                page_token = next_token
+                time.sleep(PAGE_DELAY_S)
 
         # Subdivide if this cell hit the API cap (60 results per query) – use API count, not new-only, so sub-cells subdivide too
         hit_max = cell_api_returned >= REFINEMENT_RESULT_THRESHOLD

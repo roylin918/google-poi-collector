@@ -10,6 +10,8 @@ Web app to search Google Places by keyword and location, choose which attributes
 4. **Merge & dedupe** — Results from all cells are merged and deduplicated by place ID.
 5. **Export** — You choose which Place fields to fetch (name, address, rating, phone, website, etc.). Results can be previewed on an interactive map and downloaded as CSV.
 
+**Primary types (optional)** — You can limit results to one or more [Table A place types](https://developers.google.com/maps/documentation/places/web-service/place-types) (e.g. `restaurant`, `cafe`, `pharmacy`). The API accepts one type per request: with a single type we send `includedType` for precise, often cheaper results; with multiple types we run one search per type per cell and merge. This makes results more precise and can reduce cost by avoiding irrelevant POIs.
+
 **What makes it unique** — Unlike a fixed fine grid over the whole area, the **on-demand subdivision** (refine only when a cell hits the cap) reduces API calls. The **OSM boundary integration** lets you crawl POIs inside irregular geographic shapes (city limits, districts) instead of a rectangle, which is rare in typical Place-search workflows.
 
 ## Setup
@@ -36,4 +38,4 @@ Then open **http://127.0.0.1:5001** in your browser. Use the form to enter keywo
 
 ## Session
 
-Keywords, location, attribute checkboxes, max pages, max results, language, and region are saved to `session.json` when you start a crawl and are restored when you open the app again.
+Keywords, location, primary types (optional), attribute checkboxes, max pages, max results, language, and region are saved to `session.json` when you start a crawl and are restored when you open the app again.

@@ -20,6 +20,7 @@ DEFAULT_SESSION = {
     "max_results": None,  # None = no cap
     "language_code": "en",
     "region_code": "",
+    "primary_types": [],  # optional: e.g. ["restaurant", "cafe"] to limit POI types (Table A place types)
     "attributes": [
         "id",
         "displayName",
@@ -79,7 +80,7 @@ def load_session():
     return out
 
 
-def save_session(keywords, location, max_pages, max_results, language_code, region_code, attributes):
+def save_session(keywords, location, max_pages, max_results, language_code, region_code, primary_types, attributes):
     """Persist session to session.json."""
     data = {
         "keywords": keywords,
@@ -88,6 +89,7 @@ def save_session(keywords, location, max_pages, max_results, language_code, regi
         "max_results": max_results,
         "language_code": language_code or "en",
         "region_code": region_code or "",
+        "primary_types": list(primary_types) if primary_types else [],
         "attributes": list(attributes),
     }
     with open(SESSION_PATH, "w", encoding="utf-8") as f:

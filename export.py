@@ -172,7 +172,13 @@ def to_folium_map(places, center_lat, center_lng, path, field_list=None, grid_ce
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    m = folium.Map(location=[center_lat, center_lng], zoom_start=12)
+    # Monotone OSM-style base: CartoDB Positron (light gray, minimal)
+    m = folium.Map(
+        location=[center_lat, center_lng],
+        zoom_start=12,
+        tiles="CartoDB positron",
+        control_scale=True,
+    )
     if not field_list:
         field_list = ["displayName", "formattedAddress"]
 
@@ -202,15 +208,21 @@ def to_folium_map(places, center_lat, center_lng, path, field_list=None, grid_ce
             ).add_to(fg_grid)
     fg_grid.add_to(m)
 
-    # Layer: POIs – toggleable
+    # Layer: POIs – simple circle points, toggleable
     fg_pois = folium.FeatureGroup(name="POIs", show=True)
     for p in places:
         lat, lng = _get_location(p)
         if lat is None or lng is None:
             continue
         content = _get_place_attributes_html(p, field_list)
-        folium.Marker(
-            [lat, lng],
+        folium.CircleMarker(
+            location=[lat, lng],
+            radius=5,
+            weight=1,
+            color="#1f2937",
+            fill=True,
+            fill_color="#374151",
+            fill_opacity=0.9,
             popup=folium.Popup(content, max_width=400),
             tooltip=folium.Tooltip(content, sticky=True),
         ).add_to(fg_pois)
@@ -218,12 +230,13 @@ def to_folium_map(places, center_lat, center_lng, path, field_list=None, grid_ce
 
     folium.LayerControl(collapsed=False).add_to(m)
 
-    # Total POI count overlay
+    # Total POI count overlay (matches monotone style)
     count = sum(1 for p in places if _get_location(p) != (None, None))
     count_html = (
         f'<div style="position: fixed; top: 10px; left: 50px; z-index: 9999; '
-        'background: white; padding: 8px 14px; border-radius: 6px; '
-        'box-shadow: 0 1px 5px rgba(0,0,0,0.2); font-weight: bold; font-size: 14px;">'
+        'background: #f8f9fa; padding: 8px 14px; border-radius: 6px; '
+        'border: 1px solid #dee2e6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); '
+        'font-weight: 600; font-size: 14px; color: #212529;">'
         f"Total: {count} POI{'' if count == 1 else 's'}"
         "</div>"
     )

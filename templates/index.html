@@ -1,166 +1,214 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google POI Crawler</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            border: 'hsl(var(--border))',
+            input: 'hsl(var(--input))',
+            ring: 'hsl(var(--ring))',
+            background: 'hsl(var(--background))',
+            foreground: 'hsl(var(--foreground))',
+            primary: {
+              DEFAULT: 'hsl(var(--primary))',
+              foreground: 'hsl(var(--primary-foreground))',
+            },
+            secondary: {
+              DEFAULT: 'hsl(var(--secondary))',
+              foreground: 'hsl(var(--secondary-foreground))',
+            },
+            muted: {
+              DEFAULT: 'hsl(var(--muted))',
+              foreground: 'hsl(var(--muted-foreground))',
+            },
+            accent: {
+              DEFAULT: 'hsl(var(--accent))',
+              foreground: 'hsl(var(--accent-foreground))',
+            },
+            card: {
+              DEFAULT: 'hsl(var(--card))',
+              foreground: 'hsl(var(--card-foreground))',
+            },
+          },
+          borderRadius: {
+            lg: 'var(--radius)',
+            md: 'calc(var(--radius) - 2px)',
+            sm: 'calc(var(--radius) - 4px)',
+          },
+        },
+      },
+    };
+  </script>
   <style>
     :root {
-      --bg: #f5f5f5;
-      --fg: #1a1a1a;
-      --card: #fff;
-      --border: #ddd;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --success: #16a34a;
-      --muted: #6b7280;
+      /* Dark theme (shadcn dark) */
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 3.9%;
+      --card-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --accent: 240 3.7% 15.9%;
+      --accent-foreground: 0 0% 98%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+      --radius: 0.5rem;
     }
-    * { box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--fg);
-      margin: 0;
-      padding: 24px;
-      line-height: 1.5;
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "rlig" 1, "calt" 1;
     }
-    .container { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 1.5rem; margin: 0 0 24px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+    /* shadcn-style input focus ring */
+    .input-ring:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
     }
-    .card h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; }
-    .form-row { margin-bottom: 12px; }
-    .form-row label { display: block; margin-bottom: 4px; font-weight: 500; }
-    .form-row input[type="text"],
-    .form-row input[type="number"] {
-      width: 100%;
-      max-width: 400px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 1rem;
+    .input-ring::placeholder { color: hsl(var(--muted-foreground)); }
+    /* checkbox: shadcn accent */
+    input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 0.25rem;
+      border: 1px solid hsl(var(--input));
+      accent-color: hsl(var(--primary));
     }
-    .form-inline { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
-    .form-inline .form-group { display: flex; align-items: center; gap: 6px; }
-    .form-inline label { margin: 0; white-space: nowrap; }
-    .form-inline input { width: 80px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; }
-    .attr-section { margin-bottom: 16px; }
-    .attr-section h3 { font-size: 0.9rem; margin: 0 0 8px; color: var(--muted); }
-    .attr-grid { display: flex; flex-wrap: wrap; gap: 8px 20px; }
-    .attr-grid label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: normal; }
-    .attr-grid input[type="checkbox"] { width: 18px; height: 18px; }
-    .btn {
-      display: inline-block;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      color: #fff;
-      background: var(--primary);
-    }
-    .btn:hover { background: var(--primary-hover); }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .btn-secondary { background: var(--muted); }
-    .btn-secondary:hover { background: #4b5563; }
-    .progress-card { min-height: 120px; }
-    #statusText { font-weight: 500; }
-    #elapsedText { color: var(--muted); font-size: 0.9rem; }
-    #logArea {
-      width: 100%;
-      min-height: 80px;
-      margin-top: 12px;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: #fafafa;
-      font-family: monospace;
-      font-size: 0.85rem;
-      resize: vertical;
-    }
-    .result-links { margin-top: 12px; }
-    .result-links a { margin-right: 12px; }
-    .hidden { display: none; }
+    input[type="checkbox"]:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>Google POI Crawler</h1>
+<body class="min-h-screen">
+  <div class="container max-w-2xl mx-auto px-4 py-8 sm:px-6">
+    <h1 class="text-2xl font-semibold tracking-tight mb-8">Google POI Crawler</h1>
 
-    <div class="card">
-      <h2>Search — type keywords and location here</h2>
-      <div class="form-row">
-        <label for="keywords">Keywords (e.g. cafe, pizza)</label>
-        <input type="text" id="keywords" name="keywords" placeholder="cafe">
-      </div>
-      <div class="form-row">
-        <label for="location">Location (e.g. Taipei Taiwan)</label>
-        <input type="text" id="location" name="location" placeholder="Taipei Taiwan">
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Options</h2>
-      <div class="form-inline">
-        <div class="form-group">
-          <label for="max_pages">Max pages (1–20)</label>
-          <input type="number" id="max_pages" name="max_pages" min="1" max="20" value="10">
+    <!-- Search card -->
+    <div class="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 mb-6">
+      <h2 class="text-sm font-medium text-muted-foreground mb-4">Search</h2>
+      <p class="text-sm text-muted-foreground mb-4">Type keywords and location here.</p>
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label for="keywords" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Keywords</label>
+          <input type="text" id="keywords" name="keywords" placeholder="e.g. cafe, pizza"
+            class="flex h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">
         </div>
-        <div class="form-group">
-          <label for="max_results">Max results (empty = no limit)</label>
-          <input type="text" id="max_results" name="max_results" placeholder="e.g. 200">
+        <div class="space-y-2">
+          <label for="location" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Location</label>
+          <input type="text" id="location" name="location" placeholder="e.g. Taipei Taiwan"
+            class="flex h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">
         </div>
-        <div class="form-group">
-          <label for="language_code">Language</label>
-          <input type="text" id="language_code" name="language_code" value="en" placeholder="en">
-        </div>
-        <div class="form-group">
-          <label for="region_code">Region</label>
-          <input type="text" id="region_code" name="region_code" placeholder="TW">
+        <div class="space-y-2">
+          <label for="primary_types" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Primary types (optional)</label>
+          <input type="text" id="primary_types" name="primary_types" list="primary_types_list" placeholder="e.g. restaurant, cafe (leave empty for no filter)"
+            class="flex h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50">
+          <datalist id="primary_types_list">
+            <option value="restaurant"><option value="cafe"><option value="bar"><option value="bakery"><option value="store">
+            <option value="supermarket"><option value="pharmacy"><option value="gas_station"><option value="parking">
+            <option value="hospital"><option value="school"><option value="library"><option value="museum">
+            <option value="park"><option value="gym"><option value="hotel"><option value="bank"><option value="atm">
+          </datalist>
+          <p class="text-xs text-muted-foreground">Comma-separated. Limits POIs to these types (Table A). One type = most efficient; multiple = one search per type.</p>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <h2>Attributes to fetch</h2>
-      <button type="button" class="btn btn-secondary" id="selectBasics">Select all basics</button>
+    <!-- Options card -->
+    <div class="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 mb-6">
+      <h2 class="text-sm font-medium text-muted-foreground mb-4">Options</h2>
+      <div class="flex flex-wrap gap-6 items-end">
+        <div class="space-y-2">
+          <label for="max_pages" class="text-sm font-medium leading-none">Max pages</label>
+          <input type="number" id="max_pages" name="max_pages" min="1" max="20" value="10"
+            class="flex h-9 w-24 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring">
+        </div>
+        <div class="space-y-2">
+          <label for="max_results" class="text-sm font-medium leading-none">Max results</label>
+          <input type="text" id="max_results" name="max_results" placeholder="empty = no limit"
+            class="flex h-9 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring placeholder:text-muted-foreground">
+        </div>
+        <div class="space-y-2">
+          <label for="language_code" class="text-sm font-medium leading-none">Language</label>
+          <input type="text" id="language_code" name="language_code" value="en" placeholder="en"
+            class="flex h-9 w-24 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring">
+        </div>
+        <div class="space-y-2">
+          <label for="region_code" class="text-sm font-medium leading-none">Region</label>
+          <input type="text" id="region_code" name="region_code" placeholder="TW"
+            class="flex h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors input-ring">
+        </div>
+      </div>
+    </div>
+
+    <!-- Attributes card -->
+    <div class="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 mb-6">
+      <h2 class="text-sm font-medium text-muted-foreground mb-4">Attributes to fetch</h2>
+      <button type="button" id="selectBasics"
+        class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 mb-4">
+        Select all basics
+      </button>
       {% for group_label, fields in attribute_groups %}
-      <div class="attr-section">
-        <h3>{{ group_label }}</h3>
-        <div class="attr-grid">
+      <div class="mb-4 last:mb-0">
+        <h3 class="text-sm font-medium text-muted-foreground mb-2">{{ group_label }}</h3>
+        <div class="flex flex-wrap gap-x-5 gap-y-2">
           {% for f in fields %}
-          <label><input type="checkbox" name="attr" value="{{ f }}"> {{ f }}</label>
+          <label class="flex items-center gap-2 cursor-pointer text-sm font-normal">
+            <input type="checkbox" name="attr" value="{{ f }}">
+            <span>{{ f }}</span>
+          </label>
           {% endfor %}
         </div>
       </div>
       {% endfor %}
     </div>
 
-    <div class="card progress-card">
-      <h2>Progress</h2>
-      <p><span id="statusText">Idle</span> <span id="elapsedText"></span></p>
-      <textarea id="logArea" readonly></textarea>
-      <div class="result-links hidden" id="resultLinks">
-        <a href="#" id="linkMap" class="btn" target="_blank">Open map</a>
-        <a href="#" id="linkCsv" class="btn btn-secondary" download>Download CSV</a>
+    <!-- Progress card -->
+    <div class="rounded-lg border border-border bg-card text-card-foreground shadow-sm p-6 mb-6 min-h-[140px]">
+      <h2 class="text-sm font-medium text-muted-foreground mb-2">Progress</h2>
+      <p class="text-sm mb-2">
+        <span id="statusText" class="font-medium">Idle</span>
+        <span id="elapsedText" class="text-muted-foreground"></span>
+      </p>
+      <textarea id="logArea" readonly
+        class="flex min-h-[80px] w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"></textarea>
+      <div id="resultLinks" class="hidden mt-3 flex gap-2">
+        <a href="#" id="linkMap" target="_blank"
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4">
+          Open map
+        </a>
+        <a href="#" id="linkCsv" download
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4">
+          Download CSV
+        </a>
       </div>
     </div>
 
-    <div>
-      <button type="button" class="btn" id="btnStart">Start crawl</button>
-    </div>
+    <button type="button" id="btnStart"
+      class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-6 disabled:pointer-events-none disabled:opacity-50">
+      Start crawl
+    </button>
   </div>
 
   <script>
     const keywords = document.getElementById('keywords');
     const locationInput = document.getElementById('location');
+    const primaryTypesInput = document.getElementById('primary_types');
     const maxPages = document.getElementById('max_pages');
     const maxResults = document.getElementById('max_results');
     const languageCode = document.getElementById('language_code');
@@ -207,6 +255,7 @@
         maxResults.value = s.max_results != null && s.max_results !== '' ? s.max_results : '';
         languageCode.value = s.language_code || 'en';
         regionCode.value = s.region_code || '';
+        primaryTypesInput.value = Array.isArray(s.primary_types) ? s.primary_types.join(', ') : (s.primary_types || '');
         if (s.attributes && s.attributes.length) setAttributes(s.attributes);
         else setAttributes(['id', 'displayName', 'formattedAddress', 'location', 'types']);
       } catch (e) {
@@ -228,6 +277,7 @@
             max_results: maxResults.value.trim() ? parseInt(maxResults.value, 10) : null,
             language_code: languageCode.value.trim() || 'en',
             region_code: regionCode.value.trim(),
+            primary_types: primaryTypesInput.value.split(',').map(s => s.trim()).filter(Boolean),
             attributes: attrs,
           }),
         });
@@ -286,6 +336,7 @@
             max_results: maxResults.value.trim() ? parseInt(maxResults.value, 10) : null,
             language_code: languageCode.value.trim() || null,
             region_code: regionCode.value.trim() || null,
+            primary_types: primaryTypesInput.value.split(',').map(s => s.trim()).filter(Boolean),
             attributes: attrs,
           }),
         });

@@ -82,6 +82,7 @@ def text_search(
     language_code=None,
     region_code=None,
     location_bounds=None,
+    included_type=None,
 ):
     """
     Places API (New) Text Search.
@@ -125,6 +126,8 @@ def text_search(
         body["languageCode"] = language_code
     if region_code:
         body["regionCode"] = region_code
+    if included_type and str(included_type).strip():
+        body["includedType"] = str(included_type).strip()
 
     r = requests.post(TEXT_SEARCH_URL, json=body, headers=headers, timeout=30)
     if r.status_code == 429:

@@ -49,6 +49,7 @@ def _run_crawl_worker(args):
     max_results = args["max_results"]
     language_code = args.get("language_code") or None
     region_code = args.get("region_code") or None
+    primary_types = args.get("primary_types") or []
     api_key = get_api_key()
 
     def progress_cb(status, message, count, _errors):
@@ -84,6 +85,7 @@ def _run_crawl_worker(args):
             max_results=max_results,
             language_code=language_code,
             region_code=region_code,
+            primary_types=primary_types,
         )
         places = result[0]
         center_lat, center_lng = result[1], result[2]
@@ -159,6 +161,7 @@ def api_save_session():
         data.get("max_results"),
         data.get("language_code", "en"),
         data.get("region_code", ""),
+        data.get("primary_types", []),
         data.get("attributes", []),
     )
     return jsonify({"ok": True})
@@ -186,6 +189,11 @@ def api_crawl():
             max_results = None
     language_code = (data.get("language_code") or "").strip() or None
     region_code = (data.get("region_code") or "").strip() or None
+    primary_types = data.get("primary_types")
+    if not isinstance(primary_types, list):
+        primary_types = [x.strip() for x in (primary_types or "").split(",") if x and x.strip()] if primary_types else []
+    else:
+        primary_types = [str(x).strip() for x in primary_types if str(x).strip()]
     args = {
         "keywords": keywords,
         "location": location,
@@ -194,6 +202,7 @@ def api_crawl():
         "max_results": max_results,
         "language_code": language_code,
         "region_code": region_code,
+        "primary_types": primary_types,
     }
     print("[Crawl] Starting background worker.", flush=True)
     threading.Thread(target=_run_crawl_worker, args=(args,), daemon=True).start()
