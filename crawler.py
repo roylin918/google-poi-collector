@@ -45,10 +45,12 @@ def run_crawl(
     Always starts with the roughest grid (one cell) and subdivides only when a cell
     hits the result limit (~60), to reduce API calls. For irregular boundaries
     (e.g. city), uses OSM boundary polygon when available.
-    Returns (places_list, center_lat, center_lng, cells_searched, boundary_geojson).
-    On failure returns (None, None, None, [], None).
+    Returns (places_list, center_lat, center_lng, cells_searched, boundary_geojson, api_usage).
+    api_usage: {"geocoding": int, "text_search": int, "place_details": int}.
+    On failure returns (None, None, None, [], None, api_usage with zeros).
     """
     errors = []
+    api_usage = {"geocoding": 0, "text_search": 0, "place_details": 0}
     print("[Crawl] Request received.", flush=True)
 
     def report(status, message, count=0, log_errors=False):
@@ -61,15 +63,15 @@ def run_crawl(
     if not (keywords and keywords.strip()):
         print("[Crawl] Skipped: keywords required.", flush=True)
         report("error", "Keywords are required.", 0)
-        return (None, None, None, [], None)
+        return (None, None, None, [], None, api_usage)
     if not (location and location.strip()):
         print("[Crawl] Skipped: location required.", flush=True)
         report("error", "Location is required.", 0)
-        return (None, None, None, [], None)
+        return (None, None, None, [], None, api_usage)
     if not api_key:
         print("[Crawl] Skipped: API key missing.", flush=True)
         report("error", "API key is missing. Set GOOGLE_PLACES_API_KEY or config.json.", 0)
-        return (None, None, None, [], None)
+        return (None, None, None, [], None, api_usage)
     # Phase 1 uses minimal mask (id + location only) to reduce Text Search cost; phase 2 fetches full details by ID
     crawl_mask = CRAWL_FIELD_MASK_MINIMAL
     details_mask = [f for f in (field_list or []) if f]
@@ -87,7 +89,8 @@ def run_crawl(
         err_msg = get_last_geocode_error() or ("Geocode failed for: " + location.strip())
         errors.append(err_msg)
         report("error", "Geocode failed. " + err_msg, 0, log_errors=True)
-        return (None, None, None, [], None)
+        return (None, None, None, [], None, api_usage)
+    api_usage["geocoding"] = 1
 
     center_lat, center_lng = geocoded[0], geocoded[1]
     sw_lat, sw_lng, ne_lat, ne_lng = geocoded[2], geocoded[3], geocoded[4], geocoded[5]
@@ -206,6 +209,7 @@ def run_crawl(
                         location_bounds=cell_bounds,
                         included_type=inc_type,
                     )
+                    api_usage["text_search"] += 1
                 except Exception as e:
                     errors.append(str(e))
                     report("status", f"Request error: {e}", len(all_places), log_errors=True)
@@ -293,6 +297,7 @@ def run_crawl(
             if not pid:
                 continue
             full = fetch_place(pid, details_mask, api_key, language_code=language_code, region_code=region_code)
+            api_usage["place_details"] += 1
             if full:
                 places[i] = full
             if (i + 1) % 20 == 0 or i == total - 1:
@@ -306,4 +311,4 @@ def run_crawl(
             "(not the legacy Places API) and ensure the API key has access."
         )
         report("status", "No places.", 0, log_errors=True)
-    return (places, center_lat, center_lng, cells_searched, boundary_geojson)
+    return (places, center_lat, center_lng, cells_searched, boundary_geojson, api_usage)

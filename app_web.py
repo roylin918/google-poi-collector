@@ -38,6 +38,7 @@ _crawl_state = {
     "errors": [],
     "csv_path": None,
     "map_path": None,
+    "api_usage": None,  # {"geocoding": int, "text_search": int, "place_details": int} when done
 }
 
 
@@ -72,6 +73,7 @@ def _run_crawl_worker(args):
         _crawl_state["errors"] = []
         _crawl_state["csv_path"] = None
         _crawl_state["map_path"] = None
+        _crawl_state["api_usage"] = None
         _crawl_state["elapsed"] = 0
 
     try:
@@ -91,9 +93,11 @@ def _run_crawl_worker(args):
         center_lat, center_lng = result[1], result[2]
         grid_cells = result[3] if len(result) > 3 else []
         boundary_geojson = result[4] if len(result) > 4 else None
+        api_usage = result[5] if len(result) > 5 else None
         print(f"[Crawl] Worker finished: {len(places) if places else 0} places.", flush=True)
         with _crawl_lock:
             _crawl_state["running"] = False
+            _crawl_state["api_usage"] = api_usage
             if places and len(places) > 0:
                 stamp = datetime.now().strftime("%Y%m%d_%H%M")
                 csv_path = OUTPUT_DIR / f"poi_results_{stamp}.csv"
@@ -224,6 +228,7 @@ def api_status():
             "elapsed": elapsed,
             "csv_path": _crawl_state.get("csv_path"),
             "map_path": _crawl_state.get("map_path"),
+            "api_usage": _crawl_state.get("api_usage"),
         })
 
 

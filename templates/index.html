@@ -197,6 +197,10 @@
           Download CSV
         </a>
       </div>
+      <div id="apiUsage" class="hidden mt-3 text-sm text-muted-foreground border-t border-border pt-3">
+        <span class="font-medium text-foreground">API usage (this run):</span>
+        <ul id="apiUsageList" class="mt-1 list-disc list-inside"></ul>
+      </div>
     </div>
 
     <button type="button" id="btnStart"
@@ -219,6 +223,8 @@
     const resultLinks = document.getElementById('resultLinks');
     const linkMap = document.getElementById('linkMap');
     const linkCsv = document.getElementById('linkCsv');
+    const apiUsageEl = document.getElementById('apiUsage');
+    const apiUsageList = document.getElementById('apiUsageList');
     const btnStart = document.getElementById('btnStart');
     const selectBasics = document.getElementById('selectBasics');
 
@@ -310,6 +316,17 @@
               linkCsv.href = '/output/' + data.csv_path;
               resultLinks.classList.remove('hidden');
             }
+            if (data.api_usage && typeof data.api_usage === 'object') {
+              const u = data.api_usage;
+              apiUsageList.innerHTML = [
+                u.geocoding != null && `Geocoding: ${u.geocoding}`,
+                u.text_search != null && `Text Search: ${u.text_search}`,
+                u.place_details != null && `Place Details: ${u.place_details}`,
+              ].filter(Boolean).map(s => `<li>${s}</li>`).join('');
+              apiUsageEl.classList.remove('hidden');
+            } else {
+              apiUsageEl.classList.add('hidden');
+            }
           }
         })
         .catch(() => { if (pollTimer) pollTimer = setTimeout(pollStatus, 2000); });
@@ -325,6 +342,8 @@
       logArea.value = '';
       lastErrorCount = 0;
       resultLinks.classList.add('hidden');
+      apiUsageEl.classList.add('hidden');
+      apiUsageList.innerHTML = '';
       try {
         const r = await fetch('/api/crawl', {
           method: 'POST',
