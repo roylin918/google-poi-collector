@@ -6,9 +6,12 @@ Web app to search Google Places by keyword and location, choose which attributes
 
 1. **Geocode** — Your location string is geocoded to a center point and viewport bounds (or a single point for addresses).
 2. **Optional boundary** — For cities/regions with a meaningful area, the app can fetch an **irregular boundary polygon** from OpenStreetMap (e.g. Taipei City). Searches are limited to cells that intersect this shape, and final POIs are filtered to those inside the boundary — so you get results *inside* the shape, not just a bounding box.
-3. **Adaptive grid search** — The crawler starts with **one coarse cell** covering the full area. It calls the Places Text Search API per cell. When a cell returns the API maximum (~60 results), that cell is **subdivided into 2×2** and the sub-cells are queued. Subdivision continues only where needed, up to a max depth. This keeps API usage low while still discovering all results in dense areas.
+3. **Adaptive grid search (IDs only)** — The crawler starts with **one coarse cell** covering the full area. It calls the Places **Text Search** API per cell, requesting only **place ID and location** (minimal field mask). When a cell returns the API maximum (~60 results), that cell is **subdivided into 2×2** and the sub-cells are queued. Subdivision continues only where needed, up to a max depth. This keeps Text Search usage cheap while discovering all POIs.
 4. **Merge & dedupe** — Results from all cells are merged and deduplicated by place ID.
-5. **Export** — You choose which Place fields to fetch (name, address, rating, phone, website, etc.). Results can be previewed on an interactive map and downloaded as CSV.
+5. **Fetch details** — For each **unique** place ID, the app calls the **Place Details (New)** API once with your chosen attributes (name, address, rating, phone, website, etc.). Full data is paid for only once per POI, not per cell or page.
+6. **Export** — Results can be previewed on an interactive map and downloaded as CSV.
+
+**Reducing API cost** — To avoid burning budget on repeated full-data responses, the crawl runs in two phases: (1) **Text Search** with a minimal field mask (id + location) for every cell/page, then (2) **Place Details** by ID only for the deduplicated list. So you pay for cheap discovery per request and for full details only once per unique place.
 
 **Primary types (optional)** — You can limit results to one or more [Table A place types](https://developers.google.com/maps/documentation/places/web-service/place-types) (e.g. `restaurant`, `cafe`, `pharmacy`). The API accepts one type per request: with a single type we send `includedType` for precise, often cheaper results; with multiple types we run one search per type per cell and merge. This makes results more precise and can reduce cost by avoiding irrelevant POIs.
 

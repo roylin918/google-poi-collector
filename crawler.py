@@ -13,11 +13,15 @@ from shapely.geometry import box, shape, Point
 from shapely.prepared import prep
 
 from boundary import fetch_boundary_geojson
-from places_client import geocode_with_bounds, text_search, get_last_geocode_error
+from places_client import geocode_with_bounds, text_search, fetch_place, get_last_geocode_error
 
 RADIUS_M = 20000  # 20 km default for locationBias
 PAGE_DELAY_S = 0.3  # delay between pages to reduce rate limit risk
 CELL_DELAY_S = 0.5  # delay between grid cells when using grid search
+# Phase 1: request only id + location to minimize Text Search cost; location needed for boundary filter
+CRAWL_FIELD_MASK_MINIMAL = ["id", "location"]
+# Delay between Place Details calls when fetching full details after crawl (phase 2)
+DETAIL_FETCH_DELAY_S = 0.2
 # Dynamic refinement: when a cell returns >= this many results, subdivide into 2×2 and re-search
 REFINEMENT_RESULT_THRESHOLD = 60
 MAX_REFINEMENT_DEPTH = 5  # max subdivision levels (1 -> 2×2 -> 4×4 -> 8×8 -> 16×16 -> 32×32)
@@ -66,11 +70,17 @@ def run_crawl(
         print("[Crawl] Skipped: API key missing.", flush=True)
         report("error", "API key is missing. Set GOOGLE_PLACES_API_KEY or config.json.", 0)
         return (None, None, None, [], None)
-    field_mask = [f for f in (field_list or []) if f]
-    if not field_mask:
-        field_mask = ["id", "displayName", "formattedAddress", "location"]
+    # Phase 1 uses minimal mask (id + location only) to reduce Text Search cost; phase 2 fetches full details by ID
+    crawl_mask = CRAWL_FIELD_MASK_MINIMAL
+    details_mask = [f for f in (field_list or []) if f]
+    if not details_mask:
+        details_mask = ["id", "displayName", "formattedAddress", "location"]
+    # Ensure id and location are always requested so map/export have coordinates and stable IDs
+    for req in ("id", "location"):
+        if req not in details_mask:
+            details_mask.append(req)
 
-    print(f"[Crawl] Starting: keywords={keywords.strip()!r}, location={location.strip()!r}", flush=True)
+    print(f"[Crawl] Starting: keywords={keywords.strip()!r}, location={location.strip()!r} (phase 1: IDs only, then fetch details)", flush=True)
     report("status", "Geocoding…", 0)
     geocoded = geocode_with_bounds(location.strip(), api_key, language_code=language_code)
     if not geocoded:
@@ -188,7 +198,7 @@ def run_crawl(
                         center_lat,
                         center_lng,
                         RADIUS_M,
-                        field_mask,
+                        crawl_mask,
                         api_key,
                         page_token=page_token,
                         language_code=language_code or None,
@@ -273,6 +283,22 @@ def run_crawl(
             places = inside
         except Exception as e:
             print(f"[Crawl] Boundary filter error: {e}, keeping all places.", flush=True)
+
+    # Phase 2: fetch full details per unique place ID (one Place Details call per POI; avoids paying for full fields in every Text Search)
+    if places and details_mask:
+        total = len(places)
+        report("status", f"Fetching details for {total} places…", total)
+        for i, p in enumerate(places):
+            pid = p.get("id") or (p.get("name") or "").replace("places/", "")
+            if not pid:
+                continue
+            full = fetch_place(pid, details_mask, api_key, language_code=language_code, region_code=region_code)
+            if full:
+                places[i] = full
+            if (i + 1) % 20 == 0 or i == total - 1:
+                report("status", f"Details {i + 1}/{total}…", total)
+            time.sleep(DETAIL_FETCH_DELAY_S)
+        report("status", f"Details fetched for {total} places.", total)
 
     if not places and not errors:
         errors.append(

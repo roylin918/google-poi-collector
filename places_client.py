@@ -8,6 +8,7 @@ import requests
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
+PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places"
 
 _last_geocode_error = None
 
@@ -151,3 +152,48 @@ def text_search(
     n = len(places)
     print(f"[Places API] Response: {n} places", flush=True)
     return (places, next_token)
+
+
+def fetch_place(place_id, field_mask, api_key, language_code=None, region_code=None):
+    """
+    Place Details (New): fetch one place by ID with the given field mask.
+    place_id: raw ID (e.g. ChIJ...) or resource name (places/ChIJ...); 'places/' is stripped.
+    Returns the Place dict, or None on error (logs and does not raise).
+    """
+    if not place_id or not api_key:
+        return None
+    raw_id = (place_id or "").strip().replace("places/", "")
+    if not raw_id:
+        return None
+    mask_list = field_mask if isinstance(field_mask, (list, tuple)) else [f.strip() for f in (field_mask or "").split(",") if f.strip()]
+    if not mask_list:
+        mask_list = ["id", "displayName", "formattedAddress", "location"]
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": ",".join(mask_list),
+    }
+    url = f"{PLACE_DETAILS_URL}/{raw_id}"
+    params = {}
+    if language_code:
+        params["languageCode"] = language_code
+    if region_code:
+        params["regionCode"] = region_code
+    try:
+        r = requests.get(url, headers=headers, params=params or None, timeout=15)
+        if r.status_code == 429:
+            print("[Places API] Place Details rate limit (429).", flush=True)
+            return None
+        if r.status_code >= 400:
+            try:
+                err_body = r.json()
+                api_msg = (err_body.get("error") or {}).get("message") or r.text[:200]
+            except Exception:
+                api_msg = r.text[:200] if r.text else ""
+            print(f"[Places API] Place Details {r.status_code}: {api_msg}", flush=True)
+            return None
+        r.raise_for_status()
+        return r.json()
+    except requests.RequestException as e:
+        print(f"[Places API] Place Details request error: {e}", flush=True)
+        return None
